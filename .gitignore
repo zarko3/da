@@ -1,0 +1,12 @@
+# not part of the game
+docs/
+plot-tycoon-code.zip
+.edge-test-profile/
+.wrangler/
+node_modules/
+
+# old snapshots kept for reference on this PC only
+full-version/
+single-page-version/
+multi-page-before-transport/
+multi-page-before-bank/

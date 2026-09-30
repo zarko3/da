@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plot Tycoon · City</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar" id="toolbar"></header>
+
+  <div class="app">
+    <section class="summary" id="dashboard" aria-label="Company summary"></section>
+
+    <main class="layout">
+      <section class="map-panel">
+        <div class="map-tools" aria-label="Map controls">
+          <label class="city-picker">City <select id="city-select" aria-label="Current city"></select></label>
+          <div class="map-zoom">
+            <button id="map-zoom-out" class="small" type="button" aria-label="Zoom out">&minus;</button>
+            <span id="map-zoom-label" class="num">125%</span>
+            <button id="map-zoom-in" class="small" type="button" aria-label="Zoom in">+</button>
+          </div>
+          <button id="map-fit" class="small" type="button">Center map</button>
+          <button id="world-overview" class="small" type="button">World overview</button>
+          <button id="map-multi" class="small" type="button" aria-pressed="false">Select multiple</button>
+          <span id="map-selection" class="map-selection">No plots selected</span>
+        </div>
+        <div class="map-wrap" id="map-viewport" tabindex="0" aria-label="World map. Drag to move and use the mouse wheel to zoom.">
+          <div id="map" class="map" role="grid" aria-label="15 by 15 city"></div>
+          <canvas id="map-minimap" class="map-minimap" width="176" height="112" aria-label="World overview"></canvas>
+        </div>
+        <p class="map-help">Drag to move &middot; Scroll to zoom &middot; Shift-click to select several plots</p>
+        <div class="legend" id="legend"></div>
+      </section>
+      <aside class="side">
+        <section class="panel" id="inspector"></section>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Activity</h2>
+            <button id="btn-log" class="small">View all</button>
+          </div>
+          <ul class="log" id="log"></ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div id="tooltip" class="tooltip" hidden></div>
+  <div id="toasts" class="toasts"></div>
+  <div id="modal" class="modal" hidden></div>
+
+  <script src="game.js"></script>
+  <script src="shared.js"></script>
+  <script src="world-map.js"></script>
+  <script src="city.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plot Tycoon · Market</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar" id="toolbar"></header>
+
+  <div class="app">
+    <section class="summary" id="dashboard" aria-label="Company summary"></section>
+
+    <main class="market-view">
+      <section class="panel" id="suppliers"></section>
+      <div class="side">
+        <section class="panel" id="trade"></section>
+        <section class="panel" id="list-form"></section>
+        <section class="panel" id="my-listings"></section>
+        <section class="panel" id="shop-prices"></section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="modal" class="modal" hidden></div>
+
+  <script src="game.js"></script>
+  <script src="shared.js"></script>
+  <script src="market.js"></script>
+</body>
+</html>
