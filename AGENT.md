@@ -8,11 +8,12 @@ The player starts with $6,000 in a world of twenty 15x15 cities. The City page s
 
 | Building | Purpose |
 |---|---|
-| Farm | Makes wheat, milk, fruit. Cheapest way to start. |
-| Factory | Turns crops into bread, juice, snacks. |
+| Farm | Makes wheat, milk, fruit, coffee beans, timber. Cheapest way to start. |
+| Factory | Turns crops and timber into bread, juice, snacks, artisan roast coffee, furniture. |
 | Warehouse | Stores and resells goods; earns storage-contract income. |
 | Shop, Cafe, Hotel | Need stock (or rooms) and serve customers. |
 | Apartment | Earns rent. |
+| Commercial Office | Signs lucrative corporate client service retainers. |
 | Transport Depot | Trucks and drivers that carry goods between the player's own buildings. |
 
 Districts (centre, midtown, suburbs, outskirts) set land price, traffic and fertility. Buildings have levels 1-5. Company level comes from net worth.
@@ -80,7 +81,11 @@ Every page loads, in order: `game.js`, `shared.js`, then its own script. They ar
 - **Limit** (`loanLimit`): total debt is kept under a share of what you own (30% at the lowest score up to 100% at the highest).
 - **Daily payment** (`payLoans`): enough cash means principal and interest are paid. Not enough cash means the payment is missed: late fee (5% of the payment, at least $10 x inflation), unpaid interest is added to the balance, the miss is recorded (lowers the score), the loan carries on. Nothing is ever deleted and cash may go negative.
 - **Accounting:** interest and late fees count as costs in daily profit or loss (`lastDay.interest`, `lastDay.lateFees`); principal repayment does not (`lastDay.principal`). Net worth subtracts total debt. Bank transactions have their own history (`loanIn`, `loanPayment`, `lateFee`) and appear in Finance history under "The bank". The Finance "Profit by building" table has a Bank row so totals match the daily summary.
-- **Visibility:** loans are optional and only appear on the Bank page. Only a missed payment reaches other pages (toast plus one Activity line).
+## Perks, milestones, and city events
+
+- **Company Perks:** Enterprise upgrades unlocked on the Company page (Fleet Logistics, Bulk Procurement, Targeted Marketing, Staff Academy, Solar & Clean Tech, Corporate Network). Unlocking charges capital and applies persistent business modifiers.
+- **Milestones & Grants:** Goal milestones evaluated each day. Reaching targets awards one-time monetary grants directly to the company cash ledger with celebratory notifications.
+- **City Events:** Dynamic economic occurrences that cycle periodically across the 20 cities (Economic Boom, Bumper Harvest, Cultural Tourism, Urban Redevelopment, Trade Expo). Modifies local yields, traffic, and demands for the duration of the event.
 
 ## Invariants to preserve
 
@@ -120,9 +125,30 @@ Tests are not stored in the project. They lived in the session scratchpad and ca
 
 Last known results: 112 multi-page checks, 131 transport checks, 95 bank checks, 9 stress checks, and 22, 18 and 18 real-browser checks, all passing. Firefox has not been tried.
 
+## Online multiplayer (Cloudflare)
+
+- `npm run dev` / `npm run deploy` run `scripts/build.js` (copies browser files to `public/`, wraps `game.js` into generated `worker/game-core.js`), then wrangler. `public/` and `worker/game-core.js` are generated; edit the source files.
+- `worker/index.js` routes `/api/*` to one `World` Durable Object (`worker/world.js`, SQLite-backed). It holds accounts (PBKDF2 passwords, bearer sessions), every player's save, the shared world fields (`day, inflation, inflationRate, market, events`) and the plot owner map.
+- Actions: `POST /api/action {method, args}` runs the same `gameService` method on that player's save; only `LocalGameService` methods other than getters/`runWorldDay`/`checkMilestones` are allowed. Plot ownership is enforced in the server (`buyPlot(s)` refused if another player owns it); company names are unique.
+- The clock is a Durable Object alarm every `DAY_MS` (env var, default 3,600,000 = 1 hour). `tick()` works out the shared fields once on a ghost company, then runs each player's `runWorldDay` against the same pre-tick prices and gives everyone the same new ones.
+- Browser: `net.js` (loaded after `game.js`, before `shared.js`) wraps the mutating `gameService` methods: run locally for instant feedback, queue to the server, then replace the local save (`SAVE_KEY`) with the server snapshot. It polls `/api/snapshot` every 3 s and disables the local clock. `file://` stays single player. `login.html`/`login.js` sign in or register.
+- **Player-to-player trading:** each company's `state.listings` stay its own. The server publishes everyone else's offers (`offersFor`, with `avail` = what the seller really holds) in `snapshot().online.listings`; `hydrateGame` turns them into `state.rivalListings` (and an empty `state.rivalSales`), neither is ever saved. `buyInventory` treats them as offers: the buyer pays and gets a market delivery, and the sale is pushed to `rivalSales`. After the action the server calls `settleRivalSale` on each seller's company (goods leave, money arrives). Market page lists them under "other players".
+- Cloudflare serves `login.html` at `/login` and `index.html` at `/`; page checks in `net.js` must accept both.
+- Manual checks (not in `npm test`), all against `wrangler dev --var DAY_MS:5000`: `tests/online-smoke.js` (accounts, land, clock), `tests/online-trade-smoke.js` (two players trade), `tests/browser-online-cdp.js` (real Edge/Chrome: login, sync, sign out). If wrangler is killed hard its local state under `.wrangler/state` can corrupt; stop every `workerd`/wrangler process, delete that folder and restart.
+- Not shared yet: supplier stock (each company sees its own), AI buyers (each company draws its own daily pool), rivals' buildings are hidden (only "owned by X" shows).
+
 ## Known limits
 
-- Single player, one save in one browser; no online play yet.
+- Offline (file://) play is single player with one save in one browser.
 - Old saves get an empty deliveries list and empty bank; existing shops and factories see a one-day restock gap once after the transport update.
 - Loan payments are all-or-nothing (no partial payments); rates are quoted per 30 game days, not per year.
-- Cash can go negative (wages, late fees); there is no bankruptcy or game over.
+- Cash can go negative (wages, late fees); there is no bankruptcy or game over. Recovery options include closure, sales, partial principal payments, and loan restructuring.
+
+
+## Business management additions
+- Company includes business health, customer contracts, and empty-land sales. City inspector and building overview show reviewed sales.
+- Customer offers refresh every five days; up to three active orders consume assigned inventory after production, before other sales. Unit payments use sale income and bonuses use rent income. Completion/failure/cancellation affect reputation; finished history is capped at 30.
+- Property sales pay 80% land, 70% building value, and wholesale stock liquidation. capitalSale is cash income, excluded from operating profit. Plot ledgers survive disposal and repurchase. Outstanding deliveries and active customer contracts block sale/closure.
+- Closed buildings retain staff/inventory, pause wages and operations, and pay 25% maintenance plus full property tax. Listings are removed on closure.
+- Partial loan payments reduce principal, preserving daily instalments. Each distressed loan can be restructured once at its existing fixed rate; credit misses remain.
+- Cash ledger includes + sum(plot.totals.capitalSale). Tests are stored under tests/; run node --test tests/*.test.js.

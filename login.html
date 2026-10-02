@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plot Tycoon · Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app" style="max-width: 420px; margin: 64px auto;">
+    <section class="panel">
+      <h2>Plot Tycoon</h2>
+      <p>Everyone plays in the same world: the same cities, land, prices and clock.</p>
+      <form id="login-form" autocomplete="on">
+        <p><label>Username<br><input id="username" name="username" autocomplete="username" minlength="3" maxlength="20" required></label></p>
+        <p><label>Password<br><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" required></label></p>
+        <p id="login-error" role="alert" style="min-height: 1.4em;"></p>
+        <p>
+          <button id="btn-login" type="submit">Sign in</button>
+          <button id="btn-register" type="button">Create account</button>
+        </p>
+      </form>
+    </section>
+  </div>
+  <script src="game.js"></script>
+  <script src="net.js"></script>
+  <script src="login.js"></script>
+</body>
+</html>

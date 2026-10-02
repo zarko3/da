@@ -84,6 +84,12 @@ function buildMap() {
   renderMap();
 }
 
+// Online play: the player who owns this plot, when it is somebody else.
+function rivalOf(i) {
+  const owner = state.online && state.online.owners && state.online.owners[i];
+  return owner && !state.plots[i].owned && owner !== state.online.username ? owner : null;
+}
+
 function cellLook(i) {
   const plot = state.plots[i], d = districtOf(i);
   const localId = localIdOf(i);
@@ -99,6 +105,8 @@ function cellLook(i) {
     };
   }
   if (plot.owned) return { cls: `${base} empty`, html: '<span class="plus">+</span>', label: 'Your empty plot' };
+  const rival = rivalOf(i);
+  if (rival) return { cls: `${base} rival`, html: `<span class="price">${escapeHtml(rival.slice(0, 3))}</span>`, label: `Owned by ${rival}` };
   return { cls: `${base} forsale`, html: `<span class="price">${shortMoney(plotPrice(i))}</span>`, label: `Plot for sale, ${DISTRICTS[d].name}` };
 }
 
@@ -190,6 +198,7 @@ function tooltipFor(i) {
     ] };
   }
   if (plot.owned) return { title: 'Empty plot', lines: [`${d.name} · plot ${plotLabel(i)}`, 'Click to build here'] };
+  if (rivalOf(i)) return { title: `Owned by ${rivalOf(i)}`, lines: [`${d.name} · plot ${plotLabel(i)}`, 'Not for sale'] };
   return { title: `For sale: ${money(plotPrice(i))}`, lines: [`${d.name} · plot ${plotLabel(i)}`, districtPerks(districtOf(i))] };
 }
 
@@ -226,6 +235,11 @@ function plotPanel(i) {
     return `${head}<p class="muted" style="margin-top:12px">Choose what to build. ${d.name}: ${districtPerks(key)}.</p>
       <div class="build-list">${Object.keys(BUILDINGS).map(type => buildCard(type, i)).join('')}</div>`;
   }
+  if (rivalOf(i)) {
+    return `<div class="insp-head"><span class="badge d-${key} forsale">${icon('plot')}</span>
+      <div><h2>Owned by ${escapeHtml(rivalOf(i))}</h2><small>${d.name} · plot ${plotLabel(i)}</small></div></div>
+      <p class="muted" style="margin-top:12px">This land belongs to another player and is not for sale.</p>`;
+  }
   const price = plotPrice(i), need = price - state.cash;
   return `${head}<div style="margin-top:12px">
     ${row('Price', `<b class="num">${money(price)}</b>`)}
@@ -253,7 +267,7 @@ function builtPanel(i) {
 
 function multiPlotPanel(ids) {
   const plots = ids.map(id => state.plots[id]);
-  const available = plots.filter(plot => !plot.owned).length;
+  const available = ids.filter(id => !state.plots[id].owned && !rivalOf(id)).length;
   const empty = plots.filter(plot => plot.owned && !plot.building).length;
   const built = plots.filter(plot => plot.building).length;
   const districts = [...new Set(ids.map(districtOf))].map(key => DISTRICTS[key].name).join(', ');
@@ -290,7 +304,7 @@ function renderInspector() {
     box.innerHTML = `<div class="empty-state">${icon('plot')}<b>No plot selected</b>Click a plot in ${CITIES[currentCity]} to buy land or build. Drag the map to move around.</div>`;
     return;
   }
-  box.innerHTML = state.plots[selected].building ? builtPanel(selected) : plotPanel(selected);
+  box.innerHTML = (state.plots[selected].building ? builtPanel(selected) : plotPanel(selected)) + (state.plots[selected].owned ? '<div class="actions-row"><button data-property-sale="' + selected + '">Review property sale</button></div>' : '');
 }
 
 // ---- Activity: just the newest three events, and a button for the rest ----
@@ -303,7 +317,22 @@ function showLog() {
   openModal('Activity', `<ul class="log-full">${state.log.map(t => `<li>${t}</li>`).join('') || '<li>Nothing has happened yet.</li>'}</ul>`, [{ label: 'Close' }]);
 }
 
+function renderCityEvent() {
+  const el = document.getElementById('city-event-banner');
+  if (!el) return;
+  const event = activeEventInCity(currentCity);
+  if (!event) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const daysLeft = Math.max(1, event.endDay - state.day + 1);
+  el.hidden = false;
+  el.innerHTML = `<span><b>${icon('event')} City Event: ${escapeHtml(event.name)}</b> &mdash; ${escapeHtml(event.desc)}</span><span class="muted">${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining</span>`;
+}
+
 function renderPage() {
+  renderCityEvent();
   renderMap();
   renderInspector();
   renderLog();
@@ -443,3 +472,5 @@ renderLegend();
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resizeMap).observe(viewport);
 else window.addEventListener('resize', resizeMap);
 startPage('city', renderPage);
+
+onAction($('inspector'), 'click', e => { const b = e.target.closest('[data-property-sale]'); if (b) reviewPropertySale(Number(b.dataset.propertySale)); });

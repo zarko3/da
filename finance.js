@@ -75,7 +75,7 @@ function renderInflation() {
 
 function renderBuildings() {
   const owned = state.plots.map((plot, i) => ({ plot, i })).filter(({ plot }) => plot.building);
-  if (!owned.length) {
+  if (!owned.length && !state.plots.some(p => p.history.length)) {
     $('fin-buildings').innerHTML = `<h2>Profit by building</h2><div class="empty-state">${icon('chart')}<b>No buildings yet</b>Build something on the <a href="${pageLink('city')}">City page</a>.</div>`;
     return;
   }
@@ -87,11 +87,11 @@ function renderBuildings() {
       <td><button class="small" data-filter="${i}">History</button></td></tr>`;
   }).join('');
   // Plots you own but have not built on still pay property tax, so they belong in the total.
-  const empties = state.plots.filter(p => p.owned && !p.building);
+  const empties = state.plots.filter(p => !p.building && (p.owned || p.history.length || Object.values(p.totals).some(Boolean)));
   const emptyToday = empties.reduce((s, p) => s + dayProfit(p.last), 0);
   const emptyAll = empties.reduce((s, p) => s + profitOf(p.totals), 0);
   const emptyRow = empties.length
-    ? `<tr><td>Empty plots <span class="muted">(${empties.length}, land tax only)</span></td><td class="neg">${signedWhole(emptyToday)}</td><td class="neg">${signedWhole(emptyAll)}</td><td></td></tr>` : '';
+    ? `<tr><td>Empty and sold properties <span class="muted">(${empties.length})</span></td><td class="neg">${signedWhole(emptyToday)}</td><td class="neg">${signedWhole(emptyAll)}</td><td></td></tr>` : '';
   // Loan interest and late fees are costs of the company as a whole, so they get a row of their own.
   const bankToday = -round2(state.lastDay.interest + state.lastDay.lateFees), bankAll = -round2(state.bank.totals.interest + state.bank.totals.fees);
   const bankRow = bankAll || bankToday

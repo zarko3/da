@@ -80,6 +80,8 @@ function overviewTab(plot, i) {
     maxed ? '<button disabled>Fully upgraded</button>' : `<button class="primary" data-tab="upgrades">Upgrade · ${money(upgradeCost(plot))}</button>`,
     `<button data-tab="workers" ${full ? 'disabled' : ''}>${type === 'depot' ? 'Hire driver' : 'Hire worker'}</button>`,
   ];
+  buttons.push('<button data-act="toggle-closed">' + (plot.closed ? 'Reopen building' : 'Temporarily close') + '</button>');
+  buttons.push('<button data-act="sell-building">Sell building</button>', '<button data-act="sell-property">Sell property</button>');
   if (LISTERS.includes(type) && usedSpace(plot) > 0 && !alertSells) buttons.push('<button data-act="sell-all">Sell stock</button>');
   const trades = LISTERS.includes(type) || RETAIL[type];
   // Sending goods to another of your buildings, or asking for goods to be sent here.
@@ -104,6 +106,7 @@ function workerRow(w, index) {
 }
 
 function workersTab(plot, i) {
+  if (plot.closed) return '<p class="notice">This building is temporarily closed. Staff are retained and wages are paused. Reopen it from Overview before hiring.</p><div class="workers">' + plot.workers.map(workerRow).join('') + '</div>';
   const def = BUILDINGS[plot.building], slots = slotsOf(plot), full = plot.workers.length >= slots;
   const role = def.roles.find(r => r.role === hireRole) || def.roles[0];
   const options = def.roles.map(r => `<option value="${r.role}" ${r.role === role.role ? 'selected' : ''}>${r.role} (about ${money(wageOf(r.wage))}/day)</option>`).join('');
@@ -201,6 +204,49 @@ function renderDetail() {
     <div class="tab-body">${body}</div>`;
 }
 
+function renderPerks() {
+  const perks = PERKS.map(p => {
+    const unlocked = hasPerk(p.id);
+    const need = p.cost - state.cash;
+    const btn = unlocked
+      ? '<span class="status"><i class="dot ok"></i>Unlocked</span>'
+      : `<button class="primary small" data-unlock-perk="${p.id}" ${need > 0 ? 'disabled' : ''}>${need > 0 ? `Need ${money(need)} more` : `Unlock · ${money(p.cost)}`}</button>`;
+    return `<div class="perk-card${unlocked ? ' unlocked' : ''}">
+      <div class="perk-top">
+        <b>${icon('perk')} ${escapeHtml(p.name)}</b>
+        ${btn}
+      </div>
+      <small class="muted">${escapeHtml(p.desc)}</small>
+    </div>`;
+  }).join('');
+
+  $('company-perks').innerHTML = `<h2>Company Perks & Upgrades</h2>
+    <p class="muted">Research and unlock enterprise advantages to expand efficiency across your commercial empire.</p>
+    <div class="perks-grid">${perks}</div>`;
+}
+
+function renderAchievements() {
+  const completed = Array.isArray(state.achievements) ? state.achievements : [];
+  const cards = MILESTONES.map(m => {
+    const done = completed.includes(m.id);
+    const badge = done
+      ? `<span class="status"><i class="dot ok"></i>Completed · +${money(m.reward)}</span>`
+      : `<span class="muted"><small>Reward: ${money(m.reward)}</small></span>`;
+    return `<div class="achievement-card${done ? ' unlocked' : ''}">
+      <div class="achievement-top">
+        <b>${icon('trophy')} ${escapeHtml(m.name)}</b>
+        ${badge}
+      </div>
+      <small class="muted">${escapeHtml(m.desc)}</small>
+    </div>`;
+  }).join('');
+
+  const count = completed.length;
+  $('company-achievements').innerHTML = `<h2>Milestones & Trophies</h2>
+    <p class="muted">${count} of ${MILESTONES.length} milestones achieved &middot; One-time cash grants awarded directly to company funds.</p>
+    <div class="achievements-grid">${cards}</div>`;
+}
+
 function renderPage() {
   // If the remembered building is gone (or nothing is chosen yet), show the first one you own.
   if (selected === null || !state.plots[selected] || !state.plots[selected].building) {
@@ -208,9 +254,14 @@ function renderPage() {
     selected = first >= 0 ? first : null;
   }
   renderCompanyProfile();
+  renderBusinessHealth();
+  renderCustomerContracts();
+  renderPropertySales();
   renderList();
   renderDetail();
   renderDeliveries();
+  renderPerks();
+  renderAchievements();
 }
 
 // ---- Deliveries: contracts, trucks and market orders ----
@@ -355,6 +406,8 @@ onAction($('company-detail'), 'click', e => {
   else if (d.alert) runAlert(d.alert, selected);
   else if (button.id === 'hire-worker') gameService.hireWorker(selected, hireRole || BUILDINGS[plot.building].roles[0].role);
   else if (d.fire !== undefined) gameService.fireWorker(selected, Number(d.fire));
+  else if (d.act === 'toggle-closed') { const r = gameService.setBuildingClosed(selected, !plot.closed); if (!r.ok) notify(r.reason); }
+  else if (d.act === 'sell-building' || d.act === 'sell-property') { reviewPropertySale(selected, d.act === 'sell-property'); return; }
   else if (d.act === 'sell-all') gameService.sellAllInventory(selected);
   else if (d.act === 'upgrade') gameService.upgradeBuilding(selected);
   else if (d.act === 'send-from') { sendFrom(selected); return; }
@@ -418,5 +471,43 @@ $('deliveries').addEventListener('change', e => {
   render(true);
 });
 
+onAction($('company-perks'), 'click', e => {
+  const btn = e.target.closest('[data-unlock-perk]');
+  if (!btn) return;
+  gameService.unlockPerk(btn.dataset.unlockPerk);
+  render(true);
+});
+
+
+function renderBusinessHealth() {
+  const health = businessHealth();
+  $('business-health').innerHTML = '<h2>Business health</h2><p class="muted">Problems and suggested actions across your company. Losses refer to the last completed day.</p>' +
+    (state.cash < 0 ? '<div class="notice">Cash is negative. Close losing businesses, sell property, or review <a href="bank.html">loan restructuring</a>.</div>' : '') +
+    (health.map(h => '<div class="perk-card"><b>' + buildingName(h.plot) + '</b>' + h.issues.map(issue => '<p>' + escapeHtml(issue.text) + ' <a href="' + pageLink(issue.page, { plot: h.plot, tab: issue.tab }) + '">Review</a></p>').join('') + '</div>').join('') || '<p>No current building problems detected.</p>') +
+    '<p class="muted small-note">Closing retains workers and inventory, pauses wages and operations, and reduces upkeep to 25%. Property tax continues.</p>';
+}
+function renderCustomerContracts() {
+  const c = state.customers;
+  const choices = state.plots.flatMap((p, i) => p.owned && LISTERS.includes(p.building) && isStaffed(p) ? [i] : []);
+  const rows = c.orders.map(o => {
+    let action = '';
+    if (o.status === 'offered' && o.offerUntil >= state.day) action = '<label>Supply from <select id="customer-source-' + o.id + '">' + choices.map(i => '<option value="' + i + '">' + buildingName(i) + '</option>').join('') + '</select></label> <button data-accept-customer="' + o.id + '" ' + (choices.length ? '' : 'disabled') + '>Accept</button>';
+    if (o.status === 'active') action = '<button data-cancel-customer="' + o.id + '">Cancel (-5 reputation)</button>';
+    return '<div class="perk-card"><b>' + o.customer + ': ' + o.qty + ' ' + itemName(o.item) + '</b><p>' + o.status + ' &middot; ' + o.delivered + '/' + o.qty + ' supplied &middot; ' + price2(o.unitPrice) + '/unit + ' + money(o.bonus) + ' completion bonus</p><p class="muted">' + (o.status === 'offered' ? 'Accept by day ' + o.offerUntil + '; supply within ' + o.duration + ' days.' : 'Deadline: day ' + o.deadline + (o.plot !== null ? ' &middot; ' + buildingName(o.plot) : '')) + '</p>' + action + '</div>';
+  }).join('');
+  $('customer-contracts').innerHTML = '<h2>Customer contracts</h2><p>Reputation: ' + c.reputation + '/100</p><p class="muted">Assigned buildings automatically supply available stock each day before retail and market sales. Units supplied are paid immediately. Completion earns a bonus and +5 reputation; failure loses 10 reputation. Offers refresh every five days.</p>' + (rows || '<p>Build a farm, factory, or warehouse to receive offers on the next day.</p>');
+}
+function renderPropertySales() {
+  const rows = state.plots.flatMap((p, i) => p.owned && !p.building ? ['<div class="row"><span>Empty land: ' + plotLabel(i) + '</span><button data-sell-land="' + i + '">Review sale</button></div>'] : []);
+  $('property-sales').innerHTML = '<h2>Land sales</h2>' + (rows.join('') || '<p class="muted">No empty owned plots. Building sales are available in each building overview.</p>');
+}
+onAction($('property-sales'), 'click', e => { const b = e.target.closest('[data-sell-land]'); if (b) reviewPropertySale(Number(b.dataset.sellLand)); });
+onAction($('customer-contracts'), 'click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  let r;
+  if (b.dataset.acceptCustomer) { const id = Number(b.dataset.acceptCustomer); r = gameService.acceptCustomerOrder(id, Number($('customer-source-' + id).value)); }
+  else if (b.dataset.cancelCustomer) r = gameService.cancelCustomerOrder(Number(b.dataset.cancelCustomer));
+  if (r && !r.ok) notify(r.reason); render(true);
+});
 readStart();
 startPage('company', renderPage);

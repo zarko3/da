@@ -29,6 +29,7 @@
           <button id="map-multi" class="small" type="button" aria-pressed="false">Select multiple</button>
           <span id="map-selection" class="map-selection">No plots selected</span>
         </div>
+        <div id="city-event-banner" class="city-event-banner" hidden></div>
         <div class="map-wrap" id="map-viewport" tabindex="0" aria-label="World map. Drag to move and use the mouse wheel to zoom.">
           <div id="map" class="map" role="grid" aria-label="15 by 15 city"></div>
           <canvas id="map-minimap" class="map-minimap" width="176" height="112" aria-label="World overview"></canvas>
@@ -54,6 +55,7 @@
   <div id="modal" class="modal" hidden></div>
 
   <script src="game.js"></script>
+  <script src="net.js"></script>
   <script src="shared.js"></script>
   <script src="world-map.js"></script>
   <script src="city.js"></script>

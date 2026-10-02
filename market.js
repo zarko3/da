@@ -25,9 +25,11 @@ function renderSuppliers() {
     }).join('');
     const mine = state.listings.filter(l => l.item === item).map(l =>
       `<div class="listing"><span>Yours: ${buildingName(l.plot)}</span><span>${price2(l.price)}</span><span class="muted">${l.qty} left</span></div>`).join('');
-    return `<div class="mk-item"><div class="row"><b>${ITEMS[item].name}</b><span class="muted">market pays ${price2(sellPrice(item))}</span></div>${rows}${mine}</div>`;
+    const players = (state.rivalListings || []).filter(l => l.item === item && l.avail > 0).sort((a, b) => a.price - b.price).map(l =>
+      `<div class="listing"><span>${escapeHtml(l.owner)}</span><span>${price2(l.price)}</span><span class="muted">${Math.min(l.qty, l.avail)} left</span></div>`).join('');
+    return `<div class="mk-item"><div class="row"><b>${ITEMS[item].name}</b><span class="muted">market pays ${price2(sellPrice(item))}</span></div>${rows}${players}${mine}</div>`;
   }).join('');
-  $('suppliers').innerHTML = `<h2>Supplier prices</h2><p class="muted">AI suppliers. Prices change every day. Your listings appear too, and your own shops and factories buy the cheapest offer.</p>${groups}`;
+  $('suppliers').innerHTML = `<h2>Supplier prices</h2><p class="muted">AI suppliers${state.online ? ' and other players' : ''}. Prices change every day. Your listings appear too, and your own shops and factories buy the cheapest offer.</p>${groups}`;
 }
 
 // ---- Sell and buy stock (farms, factories and warehouses) ----
@@ -46,7 +48,8 @@ function renderTrade() {
     `<option value="${c.i}" ${c.i === i ? 'selected' : ''}>${BUILDINGS[c.plot.building].name} (${plotLabel(c.i)})</option>`).join('');
   const rows = Object.keys(ITEMS).filter(item => canBuy || (plot.inv[item] || 0) > 0).map(item => {
     const have = plot.inv[item] || 0;
-    const cheapest = state.market.filter(l => l.item === item && l.stock > 0).sort((a, b) => a.price - b.price)[0];
+    const cheapest = [...state.market.filter(l => l.item === item && l.stock > 0),
+      ...(state.rivalListings || []).filter(l => l.item === item && l.avail > 0)].sort((a, b) => a.price - b.price)[0];
     const info = `${have} in stock · market pays ${price2(sellPrice(item))}` + (canBuy ? ` · supplier ${cheapest ? price2(cheapest.price) : 'sold out'}` : '');
     return `<div class="item-row"><span>${ITEMS[item].name}<small>${info}</small></span><span class="btns">
       ${canBuy ? `<button class="small" data-buy="${item}" data-qty="10" ${cheapest ? '' : 'disabled'}>Buy 10</button>` : ''}

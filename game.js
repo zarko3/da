@@ -39,7 +39,7 @@ const CITIES = [
   'Cedar Grove', 'Silverton', 'Meadow Park', 'Redwood', 'Grand Junction',
 ];
 const COMPANY_SYMBOLS = {
-  plot: 'Plot', farm: 'Farm', factory: 'Factory', shop: 'Shop', hotel: 'Hotel', depot: 'Transport',
+  plot: 'Plot', farm: 'Farm', factory: 'Factory', shop: 'Shop', hotel: 'Hotel', depot: 'Transport', office: 'Office',
 };
 const COMPANY_COLORS = {
   forest: '#23784b', plum: '#8a70b8', teal: '#4f9aa3', olive: '#7d9a58',
@@ -81,49 +81,57 @@ const DISTRICTS = {
 
 // base = fair price at inflation 1.00
 const ITEMS = {
-  wheat:  { name: 'Wheat',  base: 5 },
-  milk:   { name: 'Milk',   base: 6 },
-  fruit:  { name: 'Fruit',  base: 5 },
-  bread:  { name: 'Bread',  base: 13 },
-  juice:  { name: 'Juice',  base: 12 },
-  snacks: { name: 'Snacks', base: 11 },
+  wheat:     { name: 'Wheat',         base: 5 },
+  milk:      { name: 'Milk',          base: 6 },
+  fruit:     { name: 'Fruit',         base: 5 },
+  coffee:    { name: 'Coffee Beans',  base: 8 },
+  timber:    { name: 'Timber',        base: 7 },
+  bread:     { name: 'Bread',         base: 13 },
+  juice:     { name: 'Juice',         base: 12 },
+  snacks:    { name: 'Snacks',        base: 11 },
+  roast:     { name: 'Artisan Roast', base: 19 },
+  furniture: { name: 'Furniture',     base: 26 },
 };
-const FARM_ITEMS = ['wheat', 'milk', 'fruit'];
-const FACTORY_ITEMS = ['bread', 'juice', 'snacks'];
+const FARM_ITEMS = ['wheat', 'milk', 'fruit', 'coffee', 'timber'];
+const FACTORY_ITEMS = ['bread', 'juice', 'snacks', 'roast', 'furniture'];
 const LISTERS = ['farm', 'factory', 'warehouse'];   // buildings that can list stock on the market
 const SUPPLIERS = ['Green Valley Co-op', 'Metro Wholesale', 'Sunrise Foods', 'Harbor Trading'];
 
 // A factory buys the inputs it lacks from the market and makes `qty` of `out`.
 const RECIPES = [
-  { out: 'bread',  qty: 4, in: { wheat: 2, milk: 1 } },
-  { out: 'juice',  qty: 4, in: { fruit: 3 } },
-  { out: 'snacks', qty: 4, in: { wheat: 1, fruit: 1 } },
+  { out: 'bread',     qty: 4, in: { wheat: 2, milk: 1 } },
+  { out: 'juice',     qty: 4, in: { fruit: 3 } },
+  { out: 'snacks',    qty: 4, in: { wheat: 1, fruit: 1 } },
+  { out: 'roast',     qty: 4, in: { coffee: 3 } },
+  { out: 'furniture', qty: 3, in: { timber: 3 } },
 ];
 
 // Shops, cafes and hotels buy stock from the market and use it up each day.
 // perEff = customers served per worker-efficiency, demand = customers per day.
 // Shops/cafes charge base price x markup per item; hotels charge a flat fee per guest ("room").
 const RETAIL = {
-  shop:  { items: ['bread', 'juice', 'snacks'], perEff: 8, demand: 24, markup: 1.9 },
-  cafe:  { items: ['bread', 'milk', 'juice'],   perEff: 6, demand: 18, markup: 2.6 },
-  hotel: { items: ['bread', 'milk', 'fruit'],   perEff: 3, demand: 8,  fee: 90 },
+  shop:  { items: ['bread', 'juice', 'snacks', 'furniture'], perEff: 8, demand: 24, markup: 1.9 },
+  cafe:  { items: ['bread', 'milk', 'juice', 'roast'],       perEff: 6, demand: 18, markup: 2.6 },
+  hotel: { items: ['bread', 'milk', 'fruit', 'roast'],       perEff: 3, demand: 8,  fee: 90 },
 };
 
-// Item capacity at level 1. Apartments hold nothing.
+// Item capacity at level 1. Apartments and offices hold nothing.
 // A depot's storage is the cargo waiting for or riding on its trucks.
 const CAPACITY = { farm: 200, factory: 250, warehouse: 600, shop: 100, cafe: 100, hotel: 100, depot: 400 };
+
+const OFFICE_RETAINER = 175;          // base corporate retainer income per efficiency per day
 
 // cost = price to build. Farms are the cheap start; factories, warehouses and hotels
 // need savings first. wage = daily base pay for that role.
 const BUILDINGS = {
   farm: { name: 'Farm', cost: 2200, tag: { text: 'Cheapest start', kind: 'good' },
-    desc: 'Grows wheat, milk and fruit when staffed.',
+    desc: 'Grows wheat, milk, fruit, coffee and timber when staffed.',
     roles: [{ role: 'Farmhand', wage: 20 }, { role: 'Tractor Driver', wage: 28 }, { role: 'Agronomist', wage: 40 }] },
   shop: { name: 'Shop', cost: 5500,
-    desc: 'Sells bread, juice and snacks to customers.',
+    desc: 'Sells bread, juice, snacks and furniture to customers.',
     roles: [{ role: 'Cashier', wage: 22 }, { role: 'Stocker', wage: 20 }, { role: 'Manager', wage: 38 }] },
   cafe: { name: 'Cafe', cost: 7000,
-    desc: 'Serves bread, milk and juice at high margins.',
+    desc: 'Serves bread, milk, juice and artisan roast coffee at high margins.',
     roles: [{ role: 'Barista', wage: 22 }, { role: 'Cook', wage: 28 }, { role: 'Manager', wage: 38 }] },
   apartment: { name: 'Apartment', cost: 10500,
     desc: 'Collects rent when staffed. Best in busy districts.',
@@ -132,7 +140,7 @@ const BUILDINGS = {
     desc: 'Earns storage contracts, and can buy, store and resell any item.',
     roles: [{ role: 'Loader', wage: 20 }, { role: 'Forklift Driver', wage: 27 }, { role: 'Inventory Clerk', wage: 32 }] },
   factory: { name: 'Factory', cost: 14000, tag: { text: 'Save up first', kind: 'warn' },
-    desc: 'Buys farm goods, makes bread, juice and snacks.',
+    desc: 'Buys raw materials and produces bread, juice, snacks, artisan coffee and furniture.',
     roles: [{ role: 'Line Worker', wage: 24 }, { role: 'Machinist', wage: 34 }, { role: 'Supervisor', wage: 44 }] },
   hotel: { name: 'Hotel', cost: 22000, tag: { text: 'Save up first', kind: 'warn' },
     desc: 'Guests pay per night and eat breakfast from stock.',
@@ -140,6 +148,9 @@ const BUILDINGS = {
   depot: { name: 'Transport Depot', cost: 9500, tag: { text: 'Moves goods', kind: 'warn' },
     desc: 'Trucks and drivers carry goods between your buildings under delivery contracts.',
     roles: [{ role: 'Driver', wage: 21 }, { role: 'Dispatcher', wage: 27 }, { role: 'Mechanic', wage: 30 }] },
+  office: { name: 'Commercial Office', cost: 18000, tag: { text: 'Corporate Hub', kind: 'good' },
+    desc: 'Signs lucrative corporate client retainers. Highest returns in Midtown and Town Center.',
+    roles: [{ role: 'Junior Analyst', wage: 26 }, { role: 'Account Manager', wage: 38 }, { role: 'Managing Director', wage: 54 }] },
 };
 
 const FIRST_NAMES = ['Alex', 'Sam', 'Jo', 'Robin', 'Casey', 'Morgan', 'Taylor', 'Jamie', 'Riley', 'Quinn', 'Drew', 'Avery'];
@@ -159,7 +170,8 @@ const TX_LABEL = {
   delivery: 'Delivery costs', freight: 'Delivery income',
   loanIn: 'Loan received', loanPayment: 'Loan payment', lateFee: 'Late fee',
 };
-const INCOME_TYPES = ['sale', 'rent', 'freight'];
+const INCOME_TYPES = ['sale', 'rent', 'freight', 'capitalSale'];
+TX_LABEL.capitalSale = 'Property sale';
 
 // state = { cash, day, inflation (price index), inflationRate (today's change), market: [supplier listing],
 //           listings: [player listing], listingSeq, deliveries: [delivery], deliverySeq, txSeq, seenWelcome,
@@ -201,15 +213,67 @@ function blankBank() {
 }
 
 function blankTotals() {
-  return { sale: 0, rent: 0, freight: 0, purchase: 0, wages: 0, hiring: 0, maintenance: 0, delivery: 0, propertyTax: 0, profitTax: 0, capital: 0 };
+  return { sale: 0, rent: 0, freight: 0, capitalSale: 0, purchase: 0, wages: 0, hiring: 0, maintenance: 0, delivery: 0, propertyTax: 0, profitTax: 0, capital: 0 };
 }
 
 function blankPlot() {
   return {
-    owned: false, building: null, level: 1, workers: [], inv: {}, priceMult: {},
+    owned: false, building: null, level: 1, closed: false, workers: [], inv: {}, priceMult: {},
     totals: blankTotals(), history: [], today: blankReport(), last: blankReport(),
   };
 }
+
+const PERKS = [
+  { id: 'logistics_fleet', name: 'Fleet Logistics', cost: 4500,
+    desc: 'Depot trucks carry +25% cargo load and fuel costs are cut by 30%.' },
+  { id: 'bulk_procurement', name: 'Bulk Procurement', cost: 7500,
+    desc: 'Receive a 12% discount on wholesale market orders from suppliers.' },
+  { id: 'ad_campaigns', name: 'Targeted Marketing', cost: 10000,
+    desc: 'Increases retail customer demand by +20% across all shops, cafes, and hotels.' },
+  { id: 'worker_training', name: 'Staff Academy', cost: 12500,
+    desc: 'Upskills your workforce, boosting total worker efficiency by +15%.' },
+  { id: 'clean_energy', name: 'Solar & Clean Tech', cost: 15000,
+    desc: 'Reduces daily building upkeep and maintenance fees by 25%.' },
+  { id: 'corporate_synergy', name: 'Corporate Network', cost: 20000,
+    desc: 'Increases Commercial Office corporate retainer revenue by +25%.' },
+];
+
+const MILESTONES = [
+  { id: 'first_steps', name: 'First Steps', desc: 'Own at least 1 plot and construct a building.', reward: 1000,
+    check: s => s.plots.some(p => p.owned && p.building) },
+  { id: 'in_the_black', name: 'In the Black', desc: 'Achieve a positive daily operating profit.', reward: 1500,
+    check: s => (s.lastDay?.profit || 0) > 0 },
+  { id: 'coffee_culture', name: 'Artisan Roaster', desc: 'Grow coffee beans on a farm or roast artisan coffee.', reward: 2500,
+    check: s => s.plots.some(p => (p.inv.coffee > 0 || p.inv.roast > 0 || p.today?.produced?.coffee > 0 || p.today?.produced?.roast > 0)) },
+  { id: 'timber_crafter', name: 'Master Craftsman', desc: 'Harvest timber or craft furniture at a factory.', reward: 3000,
+    check: s => s.plots.some(p => (p.inv.timber > 0 || p.inv.furniture > 0 || p.today?.produced?.timber > 0 || p.today?.produced?.furniture > 0)) },
+  { id: 'land_baron', name: 'Land Baron', desc: 'Acquire 8 or more properties.', reward: 5000,
+    check: s => s.plots.filter(p => p.owned).length >= 8 },
+  { id: 'logistics_pro', name: 'Logistics Network', desc: 'Complete 3 delivery contracts between your buildings.', reward: 4000,
+    check: s => s.deliveries.filter(d => d.kind === 'contract' && d.status === 'completed').length >= 3 },
+  { id: 'corporate_hub', name: 'Corporate Executive', desc: 'Build and staff a Commercial Office.', reward: 6000,
+    check: s => s.plots.some(p => p.building === 'office' && p.workers.length > 0) },
+  { id: 'credit_prime', name: 'Prime Borrower', desc: 'Attain a credit score of 720 or higher.', reward: 5000,
+    check: () => creditReport().score >= 720 },
+  { id: 'six_figures', name: 'Six Figures', desc: 'Reach $100,000 in company net worth.', reward: 10000,
+    check: () => netWorth() >= 100000 },
+  { id: 'multicity', name: 'Regional Conglomerate', desc: 'Own buildings across 3 different cities.', reward: 15000,
+    check: s => {
+      const cities = new Set();
+      s.plots.forEach((p, i) => { if (p.owned && p.building) cities.add(cityOfPlot(i)); });
+      return cities.size >= 3;
+    } },
+  { id: 'tycoon', name: 'Industrial Tycoon', desc: 'Achieve $300,000 net worth.', reward: 25000,
+    check: () => netWorth() >= 300000 },
+];
+
+const EVENT_TEMPLATES = [
+  { type: 'boom', name: 'Economic Boom', desc: 'Commercial Office retainers and Retail sales surge +30%.' },
+  { type: 'harvest', name: 'Bumper Harvest', desc: 'Farms yield +40% crops from fertile weather.' },
+  { type: 'tourism', name: 'Cultural Tourism Festival', desc: 'Hotels and Cafes experience a +50% surge in guests.' },
+  { type: 'construction', name: 'Urban Redevelopment', desc: 'Apartment rental demand and rates rise +25%.' },
+  { type: 'logistics', name: 'Trade Expo', desc: 'Warehouses earn +50% on storage contracts.' },
+];
 
 function newMarket() {
   const listings = [];
@@ -244,6 +308,11 @@ function newGame() {
     lastDay: blankLastDay(),
     bank: blankBank(),
     plots: Array.from({ length: WORLD_PLOT_COUNT }, blankPlot),
+    perks: [],
+    achievements: [],
+    events: [],
+    grants: 0,
+    customers: { orders: [], seq: 0, reputation: 50, refreshedDay: 0 },
   };
 }
 
@@ -310,7 +379,25 @@ function hydrateGame(saved) {
   saved.deliverySeq = saved.deliverySeq || 0;
   saved.txSeq = saved.txSeq || 0;
   saved.lastTick = saved.lastTick || Date.now();
+  saved.perks = Array.isArray(saved.perks) ? saved.perks : [];
+  saved.achievements = Array.isArray(saved.achievements) ? saved.achievements : [];
+  saved.events = Array.isArray(saved.events) ? saved.events : [];
+  saved.grants = Number.isFinite(saved.grants) ? saved.grants : 0;
+  saved.customers = Object.assign({ orders: [], seq: 0, reputation: 50, refreshedDay: 0 }, saved.customers);
+  if (!Array.isArray(saved.customers.orders)) saved.customers.orders = [];
+  saved.customers.seq = Math.max(Number(saved.customers.seq) || 0, ...saved.customers.orders.map(o => Number(o.id) || 0));
+  saved.customers.reputation = clamp(Number(saved.customers.reputation) || 0, 0, 100);
   if (!Array.isArray(saved.market) || !saved.market.length) saved.market = newMarket();
+  Object.keys(ITEMS).forEach(item => {
+    if (!saved.market.some(l => l.item === item)) {
+      const two = [...SUPPLIERS].sort(() => Math.random() - 0.5).slice(0, 2);
+      two.forEach(supplier => {
+        const bias = round2(rand(0.85, 1.25));
+        const price = round2(ITEMS[item].base * bias * saved.inflation);
+        saved.market.push({ supplier, item, price, prev: price, bias, stock: randInt(60, 120) });
+      });
+    }
+  });
   if (!Array.isArray(saved.listings)) saved.listings = [];
   if (!Array.isArray(saved.deliveries)) saved.deliveries = [];
   if (!Array.isArray(saved.log)) saved.log = [];
@@ -352,6 +439,9 @@ function hydrateGame(saved) {
     });
   }
   saved.plots = plots;
+  // Online play: other players' offers and the sales made from them. Rebuilt on every load, never saved.
+  saved.rivalListings = ((saved.online && saved.online.listings) || []).map(l => Object.assign({}, l));
+  saved.rivalSales = [];
   return saved;
 }
 
@@ -364,6 +454,8 @@ function plotHasSavedData(plot) {
 
 function serializeGame(game) {
   const saved = Object.assign({}, game, { schemaVersion: SAVE_SCHEMA_VERSION });
+  delete saved.rivalListings;
+  delete saved.rivalSales;
   saved.plots = game.plots.reduce((records, plot, id) => {
     if (plotHasSavedData(plot)) records.push(Object.assign({ id }, plot));
     return records;
@@ -503,7 +595,7 @@ const storageFee = () => STORAGE_FEE * state.inflation;
 
 // ---- Items, prices, lookups ----
 
-const buildingName = i => `${BUILDINGS[state.plots[i].building].name} (${plotLabel(i)})`;
+const buildingName = i => `${BUILDINGS[state.plots[i]?.building]?.name || 'Property'} (${plotLabel(i)})`;
 const itemName = item => ITEMS[item].name.toLowerCase();
 
 function marketPrice(item) {
@@ -512,8 +604,20 @@ function marketPrice(item) {
 }
 const sellPrice = item => round2(marketPrice(item) * SELL_RATIO);
 
-const isStaffed = plot => plot.workers.length > 0;
-const totalEfficiency = plot => plot.workers.reduce((sum, w) => sum + w.efficiency, 0);
+const isStaffed = plot => !plot.closed && plot.workers.length > 0;
+const hasPerk = id => Array.isArray(state.perks) && state.perks.includes(id);
+
+function activeEventInCity(cityId) {
+  if (!Array.isArray(state.events) || cityId === null || cityId === undefined) return null;
+  return state.events.find(e => e.city === cityId && e.endDay >= state.day) || null;
+}
+
+function cityEvents(cityId) {
+  if (!Array.isArray(state.events) || cityId === null || cityId === undefined) return [];
+  return state.events.filter(e => e.city === cityId && e.endDay >= state.day);
+}
+
+const totalEfficiency = plot => round2(plot.workers.reduce((sum, w) => sum + w.efficiency, 0) * (hasPerk('worker_training') ? 1.15 : 1));
 // Items held in a building. A depot "holds" the cargo waiting for or riding on its trucks.
 const usedSpace = plot => Object.values(plot.inv).reduce((sum, n) => sum + n, 0)
   + (plot.building === 'depot' ? cargoAboard(state.plots.indexOf(plot)) : 0);
@@ -525,17 +629,17 @@ const wagesPerDay = () => allWorkers().reduce((sum, w) => sum + w.wage, 0);
 // ---- Transport: depots, trucks and drivers ----
 
 const trucksAt = level => 1 + level;                                       // trucks a depot owns
-const truckLoadAt = level => Math.round(TRUCK_LOAD * speedAt(level));      // items one truck carries
+const truckLoadAt = level => Math.round(TRUCK_LOAD * speedAt(level) * (hasPerk('logistics_fleet') ? 1.25 : 1));      // items one truck carries
 const tripDaysAt = (distance, level) => 1 + Math.floor(distance / (TILES_PER_DAY * speedAt(level)));
 const distanceBetween = (a, b) => {
   const first = plotCoords(a), second = plotCoords(b);
   return first && second ? Math.abs(first.x - second.x) + Math.abs(first.y - second.y) + Math.abs(first.city - second.city) * CITY_WIDTH : Infinity;
 };
-const fuelCost = distance => round2(Math.max(FUEL_MIN, distance * FUEL_PER_TILE) * state.inflation);
+const fuelCost = distance => round2(Math.max(FUEL_MIN, distance * FUEL_PER_TILE) * state.inflation * (hasPerk('logistics_fleet') ? 0.7 : 1));
 const truckUpkeep = plot => plot.building === 'depot' ? round2(trucksAt(plot.level) * TRUCK_UPKEEP * state.inflation) : 0;
 
 // A truck only runs with a driver, so the crew limits how many trucks can go out.
-const operableTrucks = plot => Math.min(trucksAt(plot.level), plot.workers.length);
+const operableTrucks = plot => plot.closed ? 0 : Math.min(trucksAt(plot.level), plot.workers.length);
 const busyTrucks = i => state.deliveries.filter(d => d.kind === 'contract' && d.depot === i && d.status === 'active').length;
 const freeTrucks = i => Math.max(0, operableTrucks(state.plots[i]) - busyTrucks(i));
 
@@ -599,16 +703,41 @@ function setPrice(i, key, dollars) {
 
 // ---- Production formulas, shared by the daily simulation and the estimates ----
 
-const farmYield = (level, eff, i) => Math.floor(eff * speedAt(level) * FARM_YIELD * DISTRICTS[districtOf(i)].fertility);
+const farmYield = (level, eff, i) => {
+  const ev = activeEventInCity(cityOfPlot(i));
+  const eventMult = ev && ev.type === 'harvest' ? 1.4 : 1;
+  return Math.floor(eff * speedAt(level) * FARM_YIELD * DISTRICTS[districtOf(i)].fertility * eventMult);
+};
 const factoryBatches = (level, eff) => Math.floor(eff * speedAt(level) * BATCHES_PER_EFFICIENCY);
-const rentPerDay = (level, eff, i) => APARTMENT_RENT * state.inflation * Math.min(4, eff) * speedAt(level) * DISTRICTS[districtOf(i)].traffic;
-const storageContracts = level => capacityAt('warehouse', level) * WAREHOUSE_RATE * state.inflation;
+const rentPerDay = (level, eff, i) => {
+  const ev = activeEventInCity(cityOfPlot(i));
+  const eventMult = ev && ev.type === 'construction' ? 1.25 : 1;
+  return APARTMENT_RENT * state.inflation * Math.min(4, eff) * speedAt(level) * DISTRICTS[districtOf(i)].traffic * eventMult;
+};
+const officeRetainer = (level, eff, i) => {
+  const ev = activeEventInCity(cityOfPlot(i));
+  const eventMult = ev && ev.type === 'boom' ? 1.3 : 1;
+  const perkMult = hasPerk('corporate_synergy') ? 1.25 : 1;
+  return Math.round(OFFICE_RETAINER * state.inflation * Math.min(5, eff) * speedAt(level) * DISTRICTS[districtOf(i)].traffic * eventMult * perkMult);
+};
+const storageContracts = (level, i) => {
+  const ev = i !== undefined ? activeEventInCity(cityOfPlot(i)) : null;
+  const eventMult = ev && ev.type === 'logistics' ? 1.5 : 1;
+  return Math.round(capacityAt('warehouse', level) * WAREHOUSE_RATE * state.inflation * eventMult);
+};
 
 // How many customers a shop/cafe/hotel gets. `luck` is ~1 (random in the real day, exactly 1 in estimates).
 function retailWants(type, level, eff, i, mults, luck) {
   const cfg = RETAIL[type];
   const capacity = Math.floor(eff * cfg.perEff * speedAt(level));
-  const demand = cfg.demand * demandAt(level) * DISTRICTS[districtOf(i)].traffic * luck;
+  const ev = activeEventInCity(cityOfPlot(i));
+  let eventMult = 1;
+  if (ev) {
+    if (ev.type === 'tourism' && (type === 'hotel' || type === 'cafe')) eventMult = 1.5;
+    else if (ev.type === 'boom') eventMult = 1.3;
+  }
+  const adMult = hasPerk('ad_campaigns') ? 1.2 : 1;
+  const demand = cfg.demand * demandAt(level) * DISTRICTS[districtOf(i)].traffic * luck * eventMult * adMult;
   if (cfg.fee) return { capacity, guests: Math.min(capacity, Math.round(demand * demandFactorOf(mults, 'room'))) };
   const want = {};
   let sum = 0;
@@ -621,7 +750,7 @@ function retailWants(type, level, eff, i, mults, luck) {
   return { capacity, want };
 }
 
-const maintenanceOf = plot => round2(upkeepValue(plot) * MAINT_RATE + usedSpace(plot) * storageFee() + truckUpkeep(plot));
+const maintenanceOf = plot => round2((upkeepValue(plot) * MAINT_RATE * (hasPerk('clean_energy') ? 0.75 : 1)) + usedSpace(plot) * storageFee() + truckUpkeep(plot));
 
 // ---- Estimates: what a building should earn per day, shown before you commit ----
 
@@ -673,8 +802,9 @@ function estimate(type, level, crew, i, mults) {
     e.income /= lucks.length;
     e.stock /= lucks.length;
   } else if (type === 'apartment') e.income = rentPerDay(level, eff, i);
+  else if (type === 'office') e.income = officeRetainer(level, eff, i);
   else if (type === 'warehouse') {
-    e.income = storageContracts(level);
+    e.income = storageContracts(level, i);
     e.note = 'Trading (buy low, sell or list high) earns extra on top of the contracts.';
   } else if (type === 'depot') {
     e.note = 'A depot earns the delivery prices you set on contracts. It costs wages, truck upkeep and fuel to run.';
@@ -718,7 +848,7 @@ function record(plot, type, amount, note) {
 function earn(plot, type, amount, note) {
   amount = round2(amount);
   state.cash = round2(state.cash + amount);
-  plot.today.revenue = round2(plot.today.revenue + amount);
+  if (type !== 'capitalSale') plot.today.revenue = round2(plot.today.revenue + amount);
   record(plot, type, amount, note);
 }
 
@@ -1014,6 +1144,7 @@ function makeWorker(role, baseWage) {
 
 function hireWorker(i, role) {
   const plot = state.plots[i];
+  if (plot.closed) { notify('Reopen this building before hiring.'); return; }
   if (!plot.building) return;
   if (plot.workers.length >= slotsOf(plot)) { notify('No free worker slots. Upgrade the building for more.'); return; }
   const def = BUILDINGS[plot.building].roles.find(r => r.role === role);
@@ -1050,17 +1181,26 @@ function buyInventory(i, item, qty) {
     ...state.listings.filter(l => l.item === item && l.plot !== i)
       .map(l => ({ ai: false, l, price: l.price, avail: Math.min(l.qty, state.plots[l.plot].inv[item] || 0) }))
       .filter(o => o.avail > 0),
+    // Online play: offers from other players' companies (see settleRivalSale).
+    ...(state.rivalListings || []).filter(l => l.item === item && l.avail > 0 && l.qty > 0)
+      .map(l => ({ ai: false, rival: true, l, price: l.price, avail: Math.min(l.qty, l.avail) })),
   ].sort((a, b) => a.price - b.price);
 
   for (const o of offers) {
     if (want <= 0) break;
-    const n = Math.min(want, o.avail, Math.floor(state.cash / o.price));
+    const price = o.ai && hasPerk('bulk_procurement') ? round2(o.price * 0.88) : o.price;
+    const n = Math.min(want, o.avail, Math.floor(state.cash / price));
     if (n <= 0) break;
-    const cost = round2(n * o.price);
+    const cost = round2(n * price);
     if (o.ai) {
       o.l.stock -= n;
-      spend(plot, 'purchase', cost, `Ordered ${n} ${itemName(item)} from ${o.l.supplier}`);
+      spend(plot, 'purchase', cost, `Ordered ${n} ${itemName(item)} from ${o.l.supplier}${hasPerk('bulk_procurement') ? ' (Bulk discount)' : ''}`);
       orderMarketDelivery(i, item, n, o.l.supplier, cost, null);
+    } else if (o.rival) {
+      o.l.qty -= n; o.l.avail -= n;
+      spend(plot, 'purchase', cost, `Ordered ${n} ${itemName(item)} from ${o.l.owner}`);
+      orderMarketDelivery(i, item, n, `${o.l.owner}'s ${BUILDINGS[o.l.building]?.name || 'property'}`, cost, null);
+      state.rivalSales.push({ owner: o.l.owner, plot: o.l.plot, listing: o.l.id, item, qty: n, cost });
     } else {
       const seller = state.plots[o.l.plot];
       seller.inv[item] -= n;                                   // the goods leave the seller now
@@ -1075,6 +1215,23 @@ function buyInventory(i, item, qty) {
   }
   pruneListings();
   return { bought, spent };
+}
+
+// Online play. The seller's side of a purchase made by another player: the goods leave now and the
+// money arrives now, exactly as when one of your own buildings buys from another. `state` is the seller's.
+function settleRivalSale(sale, buyer) {
+  const plot = state.plots[sale.plot], have = plot && plot.inv[sale.item] || 0;
+  const n = Math.min(sale.qty, have);
+  if (!plot || !plot.building || n <= 0 || n !== sale.qty) return { ok: false };
+  plot.inv[sale.item] = have - n;
+  if (!plot.inv[sale.item]) delete plot.inv[sale.item];
+  const listing = state.listings.find(l => l.id === sale.listing);
+  if (listing) listing.qty -= n;
+  plot.today.sold[sale.item] = (plot.today.sold[sale.item] || 0) + n;
+  earn(plot, 'sale', sale.cost, `Sold ${n} ${itemName(sale.item)} to ${buyer}`);
+  log(`${buildingName(sale.plot)} sold ${n} ${itemName(sale.item)} to ${buyer} for $${sale.cost.toFixed(2)}.`);
+  pruneListings();
+  return { ok: true };
 }
 
 // Sells items from a building's inventory straight to the AI buyer. qty can be 'all'.
@@ -1182,6 +1339,7 @@ function contractPlan(s, d, item, qty) {
   const sp = state.plots[s], dp = state.plots[d];
   if (!sp || !dp || !sp.building || !dp.building || s === d) return fail('Pick two different buildings.');
   if (!ITEMS[item]) return fail('Pick an item.');
+  if (sp.closed || dp.closed) return fail('Reopen both buildings before arranging a delivery.');
   if (!canSupply(sp)) return fail(`${buildingName(s)} cannot send goods.`);
   if (!accepts(dp, item)) return fail(`${buildingName(d)} cannot use ${itemName(item)}.`);
   qty = Math.floor(qty);
@@ -1354,6 +1512,7 @@ function processDeliveries() {
 
 // Farms grow crops; factories make products from ingredients on hand. Unstaffed = nothing.
 function produceGoods(plot, i) {
+  if (plot.closed) { plot.today.note = 'Temporarily closed.'; return; }
   if (plot.building !== 'farm' && plot.building !== 'factory') return;
   const report = plot.today;
   if (!isStaffed(plot)) { report.note = 'No workers: produced nothing.'; report.issue = 'staff'; return; }
@@ -1424,6 +1583,7 @@ function restockRetail(plot, i) {
 // Shops, cafes and hotels: sell/consume the stock on hand for the day's customers, then order
 // tomorrow's stock. Nothing is earned without workers and stock that has actually arrived.
 function serveCustomers(plot, i) {
+  if (plot.closed) return;
   const cfg = RETAIL[plot.building];
   if (!cfg) return;
   const report = plot.today;
@@ -1465,18 +1625,23 @@ function serveGuests(plot, cfg, guests) {
   if (served) earn(plot, 'sale', served * salePrice(plot, 'room'), `${served} guests at $${salePrice(plot, 'room').toFixed(2)}`);
 }
 
-// Apartments collect rent; warehouses collect storage contracts. Both need staff.
+// Apartments collect rent; offices collect retainers; warehouses collect storage contracts.
 function collectRent(plot, i) {
-  if (plot.building !== 'apartment' && plot.building !== 'warehouse') return;
+  if (plot.closed) return;
+  if (plot.building !== 'apartment' && plot.building !== 'office' && plot.building !== 'warehouse') return;
   if (!isStaffed(plot)) { plot.today.note = 'No workers: earned nothing.'; plot.today.issue = 'staff'; return; }
   if (plot.building === 'apartment') earn(plot, 'rent', rentPerDay(plot.level, totalEfficiency(plot), i), 'Collected rent');
-  else earn(plot, 'rent', storageContracts(plot.level), 'Storage contracts');
+  else if (plot.building === 'office') {
+    const boost = hasPerk('corporate_synergy') ? ' (Corporate Network boost)' : '';
+    earn(plot, 'rent', officeRetainer(plot.level, totalEfficiency(plot), i), `Corporate retainers${boost}`);
+  } else earn(plot, 'rent', storageContracts(plot.level, i), 'Storage contracts');
 }
 
 // Every worker is paid. Cash may go negative. Returns the total paid.
 function payWages() {
   let total = 0;
   state.plots.forEach(plot => {
+    if (plot.closed) return;
     const wages = plot.workers.reduce((sum, w) => sum + w.wage, 0);
     if (wages <= 0) return;
     spend(plot, 'wages', wages, `Paid ${plot.workers.length} worker${plot.workers.length === 1 ? '' : 's'}`);
@@ -1490,7 +1655,7 @@ function payMaintenance() {
   let total = 0;
   state.plots.forEach(plot => {
     if (!plot.building) return;
-    const cost = maintenanceOf(plot);
+    const cost = round2(maintenanceOf(plot) * (plot.closed ? 0.25 : 1));
     if (cost <= 0) return;
     spend(plot, 'maintenance', cost, `Upkeep for the ${plot.building === 'depot' ? 'depot and its trucks' : 'building'}, ${usedSpace(plot)} units stored`);
     total += cost;
@@ -1515,7 +1680,6 @@ function payPropertyTax() {
 function payProfitTax() {
   let total = 0;
   state.plots.forEach(plot => {
-    if (!plot.building) return;
     const r = plot.today;
     const profit = round2(r.revenue - dayCosts(r));
     if (profit <= 0) return;
@@ -1543,6 +1707,63 @@ function updateMarket() {
   });
 }
 
+function unlockPerk(id) {
+  const perk = PERKS.find(p => p.id === id);
+  if (!perk) return { ok: false, reason: 'invalid-perk' };
+  if (!Array.isArray(state.perks)) state.perks = [];
+  if (state.perks.includes(id)) return { ok: false, reason: 'already-unlocked' };
+  if (state.cash < perk.cost) {
+    notify(`You need $${(perk.cost - state.cash).toLocaleString()} more to unlock ${perk.name}.`);
+    return { ok: false, reason: 'cash' };
+  }
+  state.cash = round2(state.cash - perk.cost);
+  state.grants = round2((state.grants || 0) - perk.cost);
+  state.perks.push(id);
+  notify(`Perk Unlocked: ${perk.name}!`);
+  log(`Company unlocked perk: ${perk.name} for $${perk.cost.toLocaleString()}.`);
+  saveGame();
+  return { ok: true, perk };
+}
+
+function checkMilestones() {
+  if (!Array.isArray(state.achievements)) state.achievements = [];
+  MILESTONES.forEach(m => {
+    if (!state.achievements.includes(m.id)) {
+      try {
+        if (m.check(state)) {
+          state.achievements.push(m.id);
+          state.cash = round2(state.cash + m.reward);
+          state.grants = round2((state.grants || 0) + m.reward);
+          notify(`Milestone: ${m.name}! Earned a ${money(m.reward)} grant.`);
+          log(`Milestone achieved: ${m.name} (${m.desc}). Awarded ${money(m.reward)}.`);
+        }
+      } catch (err) { /* check failed */ }
+    }
+  });
+}
+
+function updateCityEvents() {
+  if (!Array.isArray(state.events)) state.events = [];
+  state.events = state.events.filter(e => e.endDay >= state.day);
+  if (state.events.length < 3 && Math.random() < 0.25) {
+    const tpl = pick(EVENT_TEMPLATES);
+    const city = randInt(0, WORLD_CITY_COUNT - 1);
+    const duration = randInt(5, 8);
+    const ev = {
+      id: ++state.txSeq,
+      type: tpl.type,
+      name: tpl.name,
+      desc: tpl.desc,
+      city,
+      startDay: state.day,
+      endDay: state.day + duration,
+    };
+    state.events.push(ev);
+    notify(`City Event in ${CITIES[city]}: ${ev.name}!`);
+    log(`City event: ${ev.name} in ${CITIES[city]} (${ev.desc}) for ${duration} days.`);
+  }
+}
+
 // One day: production, wages, upkeep and property tax, sales, market buyers, profit tax,
 // then inflation and new market prices for tomorrow.
 // In multiplayer this entire function will run only on the server, triggered by a
@@ -1551,8 +1772,10 @@ function runWorldDay(expectedDay = state.day) {
   if (processing || expectedDay !== state.day) return { ok: false, reason: 'stale-day' };
   processing = true;
   try {
+    refreshCustomerOffers();
     processDeliveries();                                   // trucks and orders that arrive today, before anything is used
     state.plots.forEach((plot, i) => { if (plot.building) produceGoods(plot, i); });
+    processCustomerOrders();
     const wages = payWages();
     const maintenance = payMaintenance();
     const propertyTax = payPropertyTax();
@@ -1583,7 +1806,9 @@ function runWorldDay(expectedDay = state.day) {
     state.bank.inflation.push(state.inflationRate);
     if (state.bank.inflation.length > BANK_WINDOW) state.bank.inflation.shift();
     updateMarket();
+    updateCityEvents();
     state.day++;
+    checkMilestones();
   } finally {
     processing = false;
   }
@@ -1617,6 +1842,151 @@ class LocalGameService {
   createLoan(amount, term, expectedRate) { return takeLoan(amount, term, expectedRate); }
   payOffLoan(id) { return repayLoan(id); }
   runWorldDay(expectedDay) { return runWorldDay(expectedDay); }
+  unlockPerk(id) { return unlockPerk(id); }
+  sellProperty(id, includeLand, expected) { return sellProperty(id, includeLand, expected); }
+  setBuildingClosed(id, closed) { return setBuildingClosed(id, closed); }
+  acceptCustomerOrder(id, plot) { return acceptCustomerOrder(id, plot); }
+  cancelCustomerOrder(id) { return cancelCustomerOrder(id); }
+  payLoanPart(id, amount) { return payLoanPart(id, amount); }
+  restructureLoan(id, expected) { return restructureLoan(id, expected); }
+  checkMilestones() { return checkMilestones(); }
+  getPerks() { return state.perks || []; }
+  getAchievements() { return state.achievements || []; }
+  getCityEvents(cityId) { return cityEvents(cityId); }
 }
 
 const gameService = new LocalGameService();
+
+// Management rules preserve plot ledgers even after disposal.
+function propertySaleQuote(i, includeLand = true) {
+  if (!isValidPlotId(i) || typeof includeLand !== 'boolean') return { ok: false, reason: 'Choose an owned property.' };
+  const p = state.plots[i];
+  if (!p || !p.owned || (!includeLand && !p.building)) return { ok: false, reason: 'Choose an owned property.' };
+  if (state.deliveries.some(d => inTransit(d) && [d.supplier, d.destination, d.depot].includes(i))) return { ok: false, reason: 'Wait for outstanding deliveries, or cancel pending deliveries first.' };
+  if (state.customers.orders.some(o => o.status === 'active' && o.plot === i)) return { ok: false, reason: 'Complete or cancel the customer contract first.' };
+  const land = includeLand ? round2(plotPrice(i) * 0.8) : 0;
+  const building = p.building ? round2(buildingValue(p) * 0.7) : 0;
+  const stock = round2(Object.entries(p.inv).reduce((sum, [item, qty]) => sum + qty * sellPrice(item), 0));
+  return { ok: true, land, building, stock, workers: p.workers.length, total: round2(land + building + stock) };
+}
+function sellProperty(i, includeLand = true, expected) {
+  const q = propertySaleQuote(i, includeLand); if (!q.ok) return q;
+  if (expected !== undefined && expected !== q.total) return { ok: false, reason: 'The sale quote changed. Review it again.' };
+  const p = state.plots[i];
+  if (q.stock) earn(p, 'sale', q.stock, 'Liquidated inventory on property sale');
+  earn(p, 'capitalSale', q.land + q.building, includeLand ? 'Sold land and building' : 'Sold building; retained land');
+  state.listings = state.listings.filter(l => l.plot !== i);
+  Object.assign(p, { owned: !includeLand, building: null, level: 1, closed: false, workers: [], inv: {}, priceMult: {} });
+  log('Sold property at ' + plotLabel(i) + ' for $' + q.total.toFixed(2) + '.');
+  saveGame(); return { ok: true, quote: q };
+}
+function setBuildingClosed(i, closed) {
+  const p = state.plots[i];
+  if (!p || !p.owned || !p.building || typeof closed !== 'boolean') return { ok: false, reason: 'Choose a building.' };
+  if (closed && state.deliveries.some(d => inTransit(d) && [d.supplier, d.destination, d.depot].includes(i))) return { ok: false, reason: 'Wait for deliveries before closing.' };
+  if (closed && state.customers.orders.some(o => o.status === 'active' && o.plot === i)) return { ok: false, reason: 'Complete or cancel the customer contract before closing.' };
+  p.closed = closed; if (closed) state.listings = state.listings.filter(l => l.plot !== i);
+  log(buildingName(i) + (closed ? ' temporarily closed.' : ' reopened.'));
+  saveGame(); return { ok: true };
+}
+
+function businessHealth() {
+  return state.plots.flatMap((p, i) => {
+    if (!p.building) return [];
+    const issues = [], add = (text, tab, page = 'company') => issues.push({ text, tab, page });
+    if (p.closed) add('Temporarily closed: wages paused; 25% upkeep and full property tax still apply.', 'overview');
+    else {
+      if (!p.workers.length) add('No workers: this building cannot earn.', 'workers');
+      if (['stock', 'waiting'].includes(p.last.issue)) add(p.last.note || 'Stock is missing or on its way.', 'inventory');
+      if (p.last.issue === 'full' || (hasInventory(p) && freeSpace(i) <= 0)) add('Storage is full. Sell stock or arrange a delivery.', 'inventory', 'market');
+      if (RETAIL[p.building] && retailKeys(p.building).some(k => multOf(p.priceMult, k) > 1.5)) add('High prices reduce demand. Review your prices.', 'overview', 'market');
+      if (p.building === 'depot' && busyTrucks(i) < operableTrucks(p)) add('Trucks are idle. Arrange a delivery to put them to work.', 'overview');
+      if (dayProfit(p.last) < 0) {
+        const costs = [['wages', p.last.wages], ['stock purchases', p.last.stock], ['upkeep', p.last.maintenance], ['delivery', p.last.delivery], ['taxes', p.last.property + p.last.tax]];
+        const largest = costs.filter(([, value]) => value > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([name, value]) => name + ' $' + value.toFixed(2)).join(', ');
+        add('Lost money last day: $' + (-dayProfit(p.last)).toFixed(2) + '.' + (largest ? ' Largest costs: ' + largest + '.' : '') + ' Review costs and staffing.', 'overview', 'finance');
+      }
+    }
+    return issues.length ? [{ plot: i, profit: dayProfit(p.last), issues }] : [];
+  });
+}
+function refreshCustomerOffers() {
+  const c = state.customers; if (c.refreshedDay && state.day - c.refreshedDay < 5) return;
+  const types = [...new Set(state.plots.filter(p => p.building && !p.closed && LISTERS.includes(p.building)).map(p => p.building))];
+  if (!types.length) return;
+  c.orders = c.orders.filter(o => o.status !== 'offered');
+  const items = [...new Set(types.flatMap(t => t === 'farm' ? FARM_ITEMS : t === 'factory' ? FACTORY_ITEMS : Object.keys(ITEMS)))];
+  for (let n = 0; n < 3; n++) {
+    const item = items[(Math.floor(state.day / 5) + n) % items.length], qty = 20 + n * 10, unitPrice = round2(sellPrice(item) * 1.2);
+    c.orders.push({ id: ++c.seq, customer: ['City Grocers', 'Community Catering', 'Regional Supply'][n], item, qty, delivered: 0, unitPrice,
+      bonus: round2(qty * unitPrice * 0.2), duration: 5 + n, offerUntil: state.day + 4, status: 'offered', plot: null });
+  }
+  c.refreshedDay = state.day;
+  const finished = c.orders.filter(o => ['completed', 'failed', 'cancelled'].includes(o.status)).slice(-30);
+  c.orders = c.orders.filter(o => ['offered', 'active'].includes(o.status)).concat(finished);
+}
+function acceptCustomerOrder(id, i) {
+  const o = state.customers.orders.find(o => o.id === id), p = state.plots[i];
+  if (!o || o.status !== 'offered' || o.offerUntil < state.day) return { ok: false, reason: 'This offer has expired.' };
+  if (!p || !p.owned || !LISTERS.includes(p.building) || !isStaffed(p)) return { ok: false, reason: 'Choose a staffed, open farm, factory, or warehouse.' };
+  if (state.customers.orders.filter(o => o.status === 'active').length >= 3) return { ok: false, reason: 'Complete an active contract first (maximum three).' };
+  o.plot = i; o.status = 'active'; o.deadline = state.day + o.duration - 1;
+  log('Accepted customer order for ' + o.qty + ' ' + itemName(o.item) + ', due day ' + o.deadline + '.');
+  saveGame(); return { ok: true };
+}
+function cancelCustomerOrder(id) {
+  const o = state.customers.orders.find(o => o.id === id && o.status === 'active');
+  if (!o) return { ok: false, reason: 'This contract is no longer active.' };
+  o.status = 'cancelled'; o.endedDay = state.day; state.customers.reputation = Math.max(0, state.customers.reputation - 5);
+  saveGame(); return { ok: true };
+}
+function processCustomerOrders() {
+  state.customers.orders.filter(o => o.status === 'active').forEach(o => {
+    const p = state.plots[o.plot];
+    if (state.day <= o.deadline && p && isStaffed(p)) {
+      const qty = Math.min(o.qty - o.delivered, p.inv[o.item] || 0);
+      if (qty > 0) {
+        p.inv[o.item] -= qty; o.delivered += qty; p.today.sold[o.item] = (p.today.sold[o.item] || 0) + qty;
+        earn(p, 'sale', qty * o.unitPrice, 'Customer contract: ' + o.customer + ', ' + qty + ' ' + itemName(o.item));
+      }
+    }
+    if (o.delivered === o.qty) {
+      o.status = 'completed'; o.endedDay = state.day; earn(p, 'rent', o.bonus, 'Customer contract completion bonus');
+      state.customers.reputation = Math.min(100, state.customers.reputation + 5); notify('Customer contract completed: ' + o.customer + '.');
+      log('Completed customer contract for ' + o.customer + '; bonus $' + o.bonus.toFixed(2) + '.');
+    } else if (state.day >= o.deadline) {
+      o.status = 'failed'; o.endedDay = state.day; state.customers.reputation = Math.max(0, state.customers.reputation - 10);
+      notify('Customer contract missed its deadline: ' + o.customer + '.');
+      log('Customer contract failed: ' + o.customer + ', ' + o.delivered + '/' + o.qty + ' supplied.');
+    }
+  });
+  pruneListings();
+}
+function payLoanPart(id, amount) {
+  const l = state.bank.loans.find(l => l.id === id && l.status === 'active');
+  if (!l || !Number.isFinite(amount) || amount <= 0 || round2(amount) !== amount || amount > l.balance || amount > state.cash) return { ok: false, reason: 'Enter an affordable payment between $0.01 and the remaining balance.' };
+  state.cash = round2(state.cash - amount); l.balance = round2(l.balance - amount);
+  l.paid = round2(l.paid + amount); state.bank.totals.principal = round2(state.bank.totals.principal + amount);
+  bankRecord('loanPayment', amount, 'Loan ' + id + ': voluntary principal payment');
+  if (l.balance === 0) { l.status = 'paid'; l.behind = false; l.closedDay = state.day; }
+  saveGame(); return { ok: true };
+}
+function restructureQuote(id) {
+  const l = state.bank.loans.find(l => l.id === id && l.status === 'active');
+  if (!l) return { ok: false, reason: 'Choose an active loan.' };
+  if (l.restructured) return { ok: false, reason: 'Each loan can be restructured once.' };
+  if (!l.behind && state.cash >= loanPaymentsPerDay() * 3) return { ok: false, reason: 'Available after a missed payment or with less than three days of loan payments in cash.' };
+  const term = Math.min(240, Math.max(30, (l.due - state.day + 1) * 2)), daily = l.rate / RATE_PERIOD;
+  const payment = Math.ceil(daily > 0 ? l.balance * daily / (1 - Math.pow(1 + daily, -term)) : l.balance / term);
+  const schedule = loanSchedule(l.balance, l.rate, term, payment);
+  return { ok: true, term, payment, balance: l.balance, day: state.day, total: schedule.total, interest: schedule.interest };
+}
+function restructureLoan(id, expected) {
+  const q = restructureQuote(id); if (!q.ok) return q;
+  if (expected && ['term', 'payment', 'balance', 'day', 'total'].some(key => q[key] !== expected[key]))
+    return { ok: false, reason: 'The restructuring quote changed. Review it again.' };
+  const l = state.bank.loans.find(l => l.id === id);
+  l.term = q.term; l.payment = q.payment; l.due = state.day + q.term; l.nextPay = state.day + 1; l.behind = false; l.restructured = true;
+  log('Loan ' + id + ' restructured over ' + q.term + ' days; prior missed payments remain on the credit report.');
+  saveGame(); return { ok: true };
+}

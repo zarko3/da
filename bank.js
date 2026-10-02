@@ -111,6 +111,7 @@ function loanCard(loan) {
     ${row('Daily payment', `<span class="num">${price2(Math.min(loan.payment, loan.balance))}</span>`)}
     ${row('Remaining balance', `<b class="num">${price2(loan.balance)}</b>`)}
     ${row('Due date', `<span class="${state.day > loan.due ? 'neg' : ''}">${dueText(loan)}</span>`)}
+    <div class="actions-row"><label>Extra principal payment <input id="partial-loan-${loan.id}" type="number" min="0.01" step="0.01" max="${Math.max(0, Math.min(state.cash, loan.balance))}" placeholder="Amount"></label><button data-partial-loan="${loan.id}">Pay amount</button><button data-restructure-loan="${loan.id}" ${restructureQuote(loan.id).ok ? '' : 'disabled'}>Review restructuring</button></div>
     <div class="meter"><i style="width:${clamp(repaid, 0, 100)}%"></i></div>
     <p class="muted small-note" style="margin-top:0">${repaid}% paid back${loan.fees ? `, ${price2(loan.fees)} in late fees so far` : ''}.</p>
   </div>`;
@@ -171,3 +172,16 @@ onAction($('loans'), 'click', e => {
 });
 
 startPage('bank', renderPage);
+
+
+onAction($('loans'), 'click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.partialLoan) {
+    const id = Number(b.dataset.partialLoan), r = gameService.payLoanPart(id, Number($('partial-loan-' + id).value));
+    notify(r.ok ? 'Principal payment recorded. Daily payments continue; the loan finishes sooner.' : r.reason); render(true);
+  } else if (b.dataset.restructureLoan) {
+    const id = Number(b.dataset.restructureLoan), q = restructureQuote(id); if (!q.ok) { notify(q.reason); return; }
+    openModal('Restructure loan', '<p>Extend repayment to ' + q.term + ' days at the existing fixed rate. New payment: ' + money(q.payment) + '/day. Remaining repayment: ' + price2(q.total) + ', including ' + price2(q.interest) + ' interest. A longer term can increase total interest. Past misses remain on your credit report. This option is available once per loan.</p>',
+      [{ label: 'Cancel' }, { label: 'Confirm restructuring', onClick: () => { state = loadGame(); const r = gameService.restructureLoan(id, q); notify(r.ok ? 'Loan restructured.' : r.reason); } }]);
+  }
+});

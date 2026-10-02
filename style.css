@@ -22,6 +22,7 @@
   --apartment: #a9c9ea;  --apartment-ink: #2f5f8f;
   --hotel: #e8adad;      --hotel-ink: #8f3a3a;
   --depot: #f2b998;      --depot-ink: #8a4520;
+  --office: #bcd4d6;     --office-ink: #2b5759;
 
   /* district colours: tile / strip */
   --center: #ddd5ec;     --center-strip: #8a70b8;
@@ -246,6 +247,7 @@ a.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .cell.primary-selected { box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
 .cell.company-owned.primary-selected { box-shadow: inset 0 0 0 3px var(--company-color), 0 0 0 3px var(--ink); }
 .cell.forsale { border-style: dashed; border-bottom-style: solid; }
+.cell.rival { opacity: .55; cursor: not-allowed; }
 
 /* Colour tokens for map tiles and the inspector badge. Later rules beat earlier ones. */
 .d-center { --strip: var(--center-strip); }
@@ -265,6 +267,7 @@ a.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .b-apartment { --tile: var(--apartment); --ink-c: var(--apartment-ink); }
 .b-hotel { --tile: var(--hotel); --ink-c: var(--hotel-ink); }
 .b-depot { --tile: var(--depot); --ink-c: var(--depot-ink); }
+.b-office { --tile: var(--office); --ink-c: var(--office-ink); }
 .cell .icon { width: 56%; height: 56%; max-width: 30px; max-height: 30px; }
 .cell .lv {
   position: absolute; right: 2px; bottom: 1px;
@@ -314,7 +317,7 @@ a.button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .insp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .insp-head > div { min-width: 0; }
 .badge { width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center; background: var(--tile, #eceef1); color: var(--ink-c, var(--muted)); flex: none; border: 1px solid rgba(0, 0, 0, .12); border-bottom: 3px solid var(--strip, rgba(0, 0, 0, .12)); }
-.badge.b-farm, .badge.b-factory, .badge.b-shop, .badge.b-cafe, .badge.b-warehouse, .badge.b-apartment, .badge.b-hotel, .badge.b-depot { border-bottom-width: 1px; }
+.badge.b-farm, .badge.b-factory, .badge.b-shop, .badge.b-cafe, .badge.b-warehouse, .badge.b-apartment, .badge.b-hotel, .badge.b-depot, .badge.b-office { border-bottom-width: 1px; }
 .badge .icon { width: 24px; height: 24px; }
 .insp-head h2 { font-size: 16px; }
 .insp-head small { display: block; color: var(--muted); font-size: 12px; }
@@ -532,8 +535,10 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
   .world-city-card > span { display: none; }
 }
 
-/* ---------- deliveries (Company page) ---------- */
-.company-view #deliveries { grid-column: 1 / -1; }
+/* ---------- deliveries, perks, achievements (Company page) ---------- */
+.company-view #deliveries,
+.company-view #company-perks,
+.company-view #company-achievements { grid-column: 1 / -1; }
 .notice.bad { color: var(--bad); border-color: var(--bad); }
 .contract-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 24px; margin-top: 4px; }
 .contract-form .field label { flex-basis: 130px; }
@@ -571,3 +576,57 @@ button.link:hover:not(:disabled) { background: none; color: var(--text); }
 .loan-total { margin-bottom: 8px; }
 .pill.ok { color: var(--good); border-color: var(--good); }
 .pill.late { color: var(--bad); border-color: var(--bad); }
+
+/* ---------- perks & achievements ---------- */
+.perks-grid, .achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.perk-card, .achievement-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.perk-card.unlocked, .achievement-card.unlocked {
+  border-color: var(--line-strong);
+  background: var(--panel);
+}
+.perk-top, .achievement-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.perk-top b, .achievement-top b {
+  font-size: 14px;
+}
+.city-event-banner {
+  background: var(--midtown);
+  border-left: 4px solid var(--midtown-strip);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.city-event-banner b {
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Company health and recovery panels */
+.company-view #business-health, .company-view #customer-contracts, .company-view #property-sales { grid-column: 1 / -1; }
+#business-health .perk-card, #customer-contracts .perk-card { margin-top: 10px; }
+#customer-contracts select { max-width: 100%; }
+.dot.closed { background: var(--muted, #777); }

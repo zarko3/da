@@ -45,6 +45,10 @@ const ICONS = {
   box: '<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
   plot: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 9v6M9 12h6"/>',
   depot: '<path d="M2 16V7h11v9"/><path d="M13 10h4l4 4v2h-8"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
+  office: '<path d="M4 21V4a1 1 0 011-1h14a1 1 0 011 1v17M9 21v-4h6v4M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2"/><path d="M2 21h20"/>',
+  perk: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>',
+  trophy: '<path d="M8 21h8m-4-4v4M5 4h14v4a7 7 0 01-14 0V4zM5 6H2a2 2 0 000 4h3m14-4h3a2 2 0 010 4h-3"/>',
+  event: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
 };
 const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({
@@ -62,6 +66,7 @@ const STATUS = {
 
 // The live status of a building: no workers beats anything the last day reported.
 function plotStatus(plot) {
+  if (plot.closed) return 'closed';
   if (!plot.building) return null;
   if (!isStaffed(plot)) return 'nostaff';
   const stalled = plot.last.issue === 'stock' || plot.last.issue === 'waiting';
@@ -114,6 +119,7 @@ function buildShell(page) {
     <nav class="tabs main-tabs" aria-label="Pages">${PAGES.map(([id, file, label]) =>
       `<a href="${file}"${id === page ? ' class="active" aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
     <div class="toolbar-actions">
+      ${typeof isOnline === 'function' && isOnline() ?'<button id="btn-players">Players</button><button id="btn-signout">Sign out</button>' : ''}
       <button id="btn-help">How to play</button>
     </div></div>`;
 }
@@ -140,6 +146,7 @@ function renderDashboard() {
 // ---- Alerts: the one thing that needs attention in a building, with at most one button ----
 
 function alertFor(plot) {
+  if (plot.closed) return { kind: 'info', text: 'Temporarily closed. Workers and inventory are retained. Wages are paused; reduced upkeep and property tax continue.', button: null };
   const i = state.plots.indexOf(plot);
   const type = plot.building, cap = capacityOf(plot), used = usedSpace(plot);
   const makes = type === 'farm' || type === 'factory', canSell = LISTERS.includes(type);
@@ -384,6 +391,8 @@ function startPage(name, renderPage) {
   // clock would never fire.
   saveGame();
   $('btn-help').addEventListener('click', showHelp);
+  if ($('btn-players')) $('btn-players').addEventListener('click', showPlayers);
+  if ($('btn-signout')) $('btn-signout').addEventListener('click', signOut);
   $('modal').addEventListener('click', onModalClick);
   $('modal').addEventListener('input', onCompanyModalInput);
   $('modal').addEventListener('change', onCompanyModalInput);
@@ -397,4 +406,14 @@ function startPage(name, renderPage) {
       if (e.key === SAVE_KEY) { reloadState(); render(false); }
     });
   }
+}
+
+
+STATUS.closed = 'Closed';
+function reviewPropertySale(i, includeLand = true) {
+  const q = propertySaleQuote(i, includeLand); if (!q.ok) { notify(q.reason); return; }
+  openModal(includeLand ? 'Sell property' : 'Sell building',
+    row('Land (80% of value)', money(q.land)) + row('Building (70% of value)', money(q.building)) + row('Stock liquidation', money(q.stock)) + row('You receive', money(q.total), 'total') +
+    '<p>' + q.workers + ' workers will be released. Listings will be removed. ' + (includeLand ? 'The land becomes available to buy again.' : 'You retain the empty plot and its land tax.') + '</p>',
+    [{ label: 'Cancel' }, { label: 'Confirm sale', onClick: () => { state = loadGame(); const r = gameService.sellProperty(i, includeLand, q.total); notify(r.ok ? 'Property sold.' : r.reason); } }]);
 }
