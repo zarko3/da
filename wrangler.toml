@@ -2,6 +2,10 @@ name = "plot-tycoon"
 main = "worker/index.js"
 compatibility_date = "2025-01-01"
 
+# Generates public/ and worker/game-core.js before every deploy, including builds run by Cloudflare.
+[build]
+command = "node scripts/build.js"
+
 # `npm run build` copies the browser files into public/ and wraps game.js for the Worker.
 [assets]
 directory = "./public"
